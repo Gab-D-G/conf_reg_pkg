@@ -635,8 +635,8 @@ def classification(outDir, maxRPcorr, edgeFract, HFC, csfFract):
 
     # Define criteria needed for classification (thresholds and hyperplane-parameters)
     thr_csf = 0.10
-    thr_HFC = 0.35
-    hyp = np.array([-19.9751070082159, 9.95127547670627, 24.8333160239175])
+    thr_HFC = 0.60
+    hyp = np.array([-14, 9.95127547670627, 24.8333160239175])
 
     # Project edge & maxRPcorr feature scores to new 1D space
     x = np.array([maxRPcorr, edgeFract])
