@@ -43,12 +43,12 @@ def find_scans(scan_info, bold_files, brain_mask_files, confounds_files, csf_mas
             break
     return bold_file, brain_mask_file, confounds_file, csf_mask, FD_file
 
-def exec_ICA_AROMA(inFile, outDir, mc_file, brain_mask, csf_mask, tr):
+def exec_ICA_AROMA(inFile, outDir, mc_file, brain_mask, csf_mask, tr, aroma_dim):
     import os
-    import utils
-    dir_path = os.path.dirname(os.path.realpath(utils.__file__))
+    import conf_reg.utils
+    dir_path = os.path.dirname(os.path.realpath(conf_reg.utils.__file__))
     ica_aroma_script_path=dir_path+'/mod_ICA_AROMA/ICA_AROMA.py'
-    command='python %s -i %s -o %s -mc %s -m %s -c %s -tr %s -ow' % (ica_aroma_script_path, os.path.abspath(inFile), os.path.abspath(outDir), os.path.abspath(mc_file), os.path.abspath(brain_mask), os.path.abspath(csf_mask), str(tr),)
+    command='python %s -i %s -o %s -mc %s -m %s -c %s -tr %s -ow -dim %s' % (ica_aroma_script_path, os.path.abspath(inFile), os.path.abspath(outDir), os.path.abspath(mc_file), os.path.abspath(brain_mask), os.path.abspath(csf_mask), str(tr),str(aroma_dim),)
     print(command)
     os.system(command)
     return os.path.abspath(outDir+'/denoised_func_data_nonaggr.nii.gz')
@@ -63,7 +63,7 @@ def csv2par(in_confounds):
     new_df['rot1']=df['rot1']
     new_df['rot2']=df['rot2']
     new_df['rot3']=df['rot3']
-    out_confounds=(in_confounds.split('.')[0])+('.par')
+    out_confounds=os.path.abspath((os.path.basename(in_confounds).split('.')[0])+('.par'))
     new_df.to_csv(out_confounds, sep='\t', index=False, header=False)
     return out_confounds
 
@@ -84,12 +84,12 @@ def scrubbing(img, FD_file, scrubbing_threshold):
     masked_img=np.asarray(img.dataobj)[:,:,:,mask.astype(bool)]
     return nb.Nifti1Image(masked_img, img.affine, img.header)
 
-def regress(scan_info, bold_files, brain_mask_files, confounds_files, csf_mask_files, FD_files, conf_list, TR, lowpass, highpass, smoothing_filter, run_aroma, apply_scrubbing, scrubbing_threshold, out_dir):
+def regress(scan_info, bold_files, brain_mask_files, confounds_files, csf_mask_files, FD_files, conf_list, TR, lowpass, highpass, smoothing_filter, run_aroma, aroma_dim, apply_scrubbing, scrubbing_threshold, out_dir):
     import os
     import pandas as pd
     import numpy as np
     import nilearn.image
-    from utils import find_scans,scrubbing,exec_ICA_AROMA,csv2par
+    from conf_reg.utils import find_scans,scrubbing,exec_ICA_AROMA,csv2par
 
 
     bold_file, brain_mask_file, confounds_file, csf_mask, FD_file=find_scans(scan_info, bold_files, brain_mask_files, confounds_files, csf_mask_files, FD_files)
@@ -125,7 +125,7 @@ def regress(scan_info, bold_files, brain_mask_files, confounds_files, csf_mask_f
     if run_aroma:
         smooth_path=os.path.abspath(out_dir+'/%s_smoothed.nii.gz' % (scan_info))
         cleaning_input.to_filename(smooth_path)
-        cleaning_input=exec_ICA_AROMA(smooth_path, out_dir+'/%s_aroma' % (scan_info), csv2par(confounds_file), brain_mask_file, csf_mask, TR)
+        cleaning_input=exec_ICA_AROMA(smooth_path, out_dir+'/%s_aroma' % (scan_info), csv2par(confounds_file), brain_mask_file, csf_mask, TR, aroma_dim)
     if len(confounds_list)>0:
         confounds_array=np.transpose(np.asarray(confounds_list))
         cleaned = nilearn.image.clean_img(cleaning_input, detrend=True, standardize=True, low_pass=lowpass, high_pass=highpass, confounds=confounds_array, t_r=TR, mask_img=brain_mask_file)

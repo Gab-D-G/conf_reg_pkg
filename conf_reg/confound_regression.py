@@ -32,6 +32,9 @@ parser.add_argument('--TR', type=float,
 parser.add_argument('--run_aroma', type=bool,
                     default=False,
                     help='Whether to run ICA AROMA or not.')
+parser.add_argument('--aroma_dim', type=int,
+                    default=0,
+                    help='Can specify a number of dimension for MELODIC.')
 parser.add_argument('--conf_list', type=str,
                     nargs="*",  # 0 or more values expected => creates a list
                     default=[],
@@ -60,6 +63,7 @@ lowpass=args.lowpass
 highpass=args.highpass
 smoothing_filter=args.smoothing_filter
 run_aroma=args.run_aroma
+aroma_dim=args.aroma_dim
 conf_list=args.conf_list
 TR=args.TR
 apply_scrubbing=args.apply_scrubbing
@@ -92,7 +96,7 @@ info_node = pe.Node(niu.IdentityInterface(fields=['scan_info']),
 info_node.iterables = [('scan_info', scan_list)]
 
 regress_node = pe.Node(Function(input_names=['scan_info', 'bold_files', 'brain_mask_files', 'confounds_files', 'csf_mask_files', 'FD_files', 'conf_list',
-                                             'TR', 'lowpass', 'highpass', 'smoothing_filter', 'run_aroma', 'apply_scrubbing', 'scrubbing_threshold', 'out_dir'],
+                                             'TR', 'lowpass', 'highpass', 'smoothing_filter', 'run_aroma', 'aroma_dim', 'apply_scrubbing', 'scrubbing_threshold', 'out_dir'],
                           output_names=['cleaned_img'],
                           function=regress),
                  name='regress')
@@ -102,6 +106,7 @@ regress_node.inputs.lowpass = lowpass
 regress_node.inputs.highpass = highpass
 regress_node.inputs.smoothing_filter = smoothing_filter
 regress_node.inputs.run_aroma = run_aroma
+regress_node.inputs.aroma_dim = aroma_dim
 regress_node.inputs.apply_scrubbing = apply_scrubbing
 regress_node.inputs.scrubbing_threshold = scrubbing_threshold
 regress_node.inputs.out_dir = out_dir
