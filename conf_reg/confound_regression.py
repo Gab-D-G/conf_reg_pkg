@@ -18,7 +18,7 @@ parser.add_argument('rabies_out', type=str,
                     help='path to RABIES output directory with the datasinks.')
 parser.add_argument('output_dir', type=str,
                     help='will drop corrected image in that folder')
-parser.add_argument('--commonspace_bold', type=bool,
+parser.add_argument('--commonspace_bold', dest='commonspace_bold', action='store_true',
                     help='If should run confound regression on a commonspace bold output.')
 parser.add_argument('--highpass', type=float, default=None,
                     help='Specify highpass filter frequency.')
@@ -29,7 +29,7 @@ parser.add_argument('--smoothing_filter', type=float, default=0.3,
 parser.add_argument('--TR', type=float,
                     default=1.0,
                     help='Repetition time')
-parser.add_argument('--run_aroma', type=bool,
+parser.add_argument('--run_aroma', dest='run_aroma', action='store_true',
                     default=False,
                     help='Whether to run ICA AROMA or not.')
 parser.add_argument('--aroma_dim', type=int,
@@ -39,7 +39,7 @@ parser.add_argument('--conf_list', type=str,
                     nargs="*",  # 0 or more values expected => creates a list
                     default=[],
                     help='list of regressors. Possible options: WM_signal,CSF_signal,aCompCor,global_signal,mot_6,mot_24, mean_FD')
-parser.add_argument('--apply_scrubbing', type=bool,
+parser.add_argument('--apply_scrubbing', dest='apply_scrubbing', action='store_true',
                     default=False,
                     help="""Whether to apply scrubbing or not. A temporal mask will be generated based on the FD threshold.
                     The frames that exceed the given threshold together with 1 back and 2 forward frames will be masked out
@@ -74,7 +74,7 @@ plugin=args.plugin
 if commonspace_bold:
     bold_files=tree_list(os.path.abspath(rabies_out)+'/bold_datasink/commonspace_bold')
     brain_mask_files=tree_list(os.path.abspath(rabies_out)+'/bold_datasink/commonspace_bold_mask')
-    csf_mask_files=tree_list(os.path.abspath(rabies_out)+'/bold_datasink/commonspace_CSF_mask')
+    csf_mask_files=tree_list(os.path.abspath(rabies_out)+'/bold_datasink/commonspace_bold_CSF_mask')
 else:
     bold_files=tree_list(os.path.abspath(rabies_out)+'/bold_datasink/corrected_bold')
     brain_mask_files=tree_list(os.path.abspath(rabies_out)+'/bold_datasink/bold_brain_mask')
