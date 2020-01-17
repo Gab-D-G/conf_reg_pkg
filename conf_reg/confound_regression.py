@@ -2,7 +2,7 @@
 
 import os
 import sys
-from utils import regress,tree_list,get_info_list
+from utils import regress,tree_list,get_info_list,find_scans, data_diagnosis
 import argparse
 
 """Build parser object"""
@@ -50,7 +50,12 @@ parser.add_argument('--scrubbing_threshold', type=float,
 parser.add_argument("-p", "--plugin", type=str, default='Linear',
                     help="Specify the nipype plugin for workflow execution. Consult nipype plugin documentation for detailed options."
                          " Linear, MultiProc, SGE and SGEGraph have been tested.")
-
+parser.add_argument('--timeseries_interval', type=str, default='all',
+                    help='Specify which timepoints to keep. e.g. "0,80".')
+parser.add_argument('--diagnosis_output', dest='diagnosis_output', action='store_true',
+                    default=False,
+                    help="Run a diagnosis for each image by computing melodic-ICA on the corrected timeseries,"
+                         "and compute a tSNR map from the input uncorrected image.")
 
 
 # parse the command line
@@ -69,6 +74,8 @@ TR=args.TR
 apply_scrubbing=args.apply_scrubbing
 scrubbing_threshold=args.scrubbing_threshold
 plugin=args.plugin
+timeseries_interval=args.timeseries_interval
+diagnosis_output=args.diagnosis_output
 
 
 if commonspace_bold:
@@ -95,8 +102,19 @@ info_node = pe.Node(niu.IdentityInterface(fields=['scan_info']),
                   name="info_node")
 info_node.iterables = [('scan_info', scan_list)]
 
-regress_node = pe.Node(Function(input_names=['scan_info', 'bold_files', 'brain_mask_files', 'confounds_files', 'csf_mask_files', 'FD_files', 'conf_list',
-                                             'TR', 'lowpass', 'highpass', 'smoothing_filter', 'run_aroma', 'aroma_dim', 'apply_scrubbing', 'scrubbing_threshold', 'out_dir'],
+
+find_scans_node = pe.Node(Function(input_names=['scan_info', 'bold_files', 'brain_mask_files', 'confounds_files', 'csf_mask_files', 'FD_files'],
+                          output_names=['bold_file', 'brain_mask_file', 'confounds_file', 'csf_mask', 'FD_file'],
+                          function=find_scans),
+                 name='find_scans')
+find_scans_node.inputs.bold_files = bold_files
+find_scans_node.inputs.brain_mask_files = brain_mask_files
+find_scans_node.inputs.csf_mask_files = csf_mask_files
+find_scans_node.inputs.confounds_files = confounds_files
+find_scans_node.inputs.FD_files = FD_files
+
+regress_node = pe.Node(Function(input_names=['bold_file', 'brain_mask_file', 'confounds_file', 'csf_mask', 'FD_file', 'conf_list',
+                                             'TR', 'lowpass', 'highpass', 'smoothing_filter', 'run_aroma', 'aroma_dim', 'apply_scrubbing', 'scrubbing_threshold', 'timeseries_interval', 'out_dir'],
                           output_names=['cleaned_img'],
                           function=regress),
                  name='regress')
@@ -110,19 +128,38 @@ regress_node.inputs.aroma_dim = aroma_dim
 regress_node.inputs.apply_scrubbing = apply_scrubbing
 regress_node.inputs.scrubbing_threshold = scrubbing_threshold
 regress_node.inputs.out_dir = out_dir
-regress_node.inputs.bold_files = bold_files
-regress_node.inputs.brain_mask_files = brain_mask_files
-regress_node.inputs.csf_mask_files = csf_mask_files
-regress_node.inputs.confounds_files = confounds_files
-regress_node.inputs.FD_files = FD_files
-
+regress_node.inputs.timeseries_interval = timeseries_interval
 
 workflow = pe.Workflow(name='confound_regression')
 workflow.connect([
-    (info_node, regress_node, [
+    (info_node, find_scans_node, [
         ("scan_info", "scan_info"),
         ]),
+    (find_scans_node, regress_node, [
+        ("bold_file", "bold_file"),
+        ("brain_mask_file", "brain_mask_file"),
+        ("confounds_file", "confounds_file"),
+        ("csf_mask", "csf_mask"),
+        ("FD_file", "FD_file"),
+        ]),
     ])
+
+if diagnosis_output:
+    data_diagnosis_node = pe.Node(Function(input_names=['bold_file', 'cleaned_path', 'brain_mask_file', 'TR'],
+                              output_names=['mel_out','tSNR_file'],
+                              function=data_diagnosis),
+                     name='data_diagnosis')
+    data_diagnosis_node.inputs.TR = TR
+    workflow.connect([
+        (find_scans_node, data_diagnosis_node, [
+            ("bold_file", "bold_file"),
+            ("brain_mask_file", "brain_mask_file"),
+            ]),
+        (regress_node, data_diagnosis_node, [
+            ("cleaned_path", "cleaned_path"),
+            ]),
+        ])
+
 
 workflow.base_dir = out_dir
 

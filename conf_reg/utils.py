@@ -84,15 +84,21 @@ def scrubbing(img, FD_file, scrubbing_threshold):
     masked_img=np.asarray(img.dataobj)[:,:,:,mask.astype(bool)]
     return nb.Nifti1Image(masked_img, img.affine, img.header)
 
-def regress(scan_info, bold_files, brain_mask_files, confounds_files, csf_mask_files, FD_files, conf_list, TR, lowpass, highpass, smoothing_filter, run_aroma, aroma_dim, apply_scrubbing, scrubbing_threshold, out_dir):
+def regress(bold_file, brain_mask_file, confounds_file, csf_mask, FD_file, conf_list, TR, lowpass, highpass, smoothing_filter, run_aroma, aroma_dim, apply_scrubbing, scrubbing_threshold, timeseries_interval, out_dir):
     import os
     import pandas as pd
     import numpy as np
+    import nibabel as nb
     import nilearn.image
     from conf_reg.utils import find_scans,scrubbing,exec_ICA_AROMA,csv2par
 
+    if not timeseries_interval=='all':
+        img=nb.load(bold_file)
+        lowcut=int(timeseries_interval.split(',')[0])
+        highcut=int(timeseries_interval.split(',')[1])
+        bold_file=os.abs.abspath('selected_timeseries.nii.gz')
+        nb.Nifti1Image(np.asarray(img.dataobj)[:,:,:,lowcut:highcut], img.affine, img.header).to_filename(bold_file)
 
-    bold_file, brain_mask_file, confounds_file, csf_mask, FD_file=find_scans(scan_info, bold_files, brain_mask_files, confounds_files, csf_mask_files, FD_files)
     confounds=pd.read_csv(confounds_file)
     keys=confounds.keys()
     confounds_list=[]
@@ -136,3 +142,19 @@ def regress(scan_info, bold_files, brain_mask_files, confounds_files, csf_mask_f
     cleaned_path=out_dir+'/'+scan_info+'_cleaned.nii.gz'
     cleaned.to_filename(cleaned_path)
     return cleaned_path
+
+def data_diagnosis(bold_file, cleaned_path, brain_mask_file, TR):
+    import os
+    import nibabel as nb
+    import numpy as np
+    mel_out=os.abs.abspath('melodic.ica/')
+    os.mkdir(mel_out)
+    os.system('melodic -i %s -o %s --tr %s -m %s --report' % (cleaned_path, mel_out, TR, brain_mask_file))
+    img=nb.load(bold_file)
+    array=np.asarray(img.dataobj)
+    mean=array.mean(axis=3)
+    std=array.std(axis=3)
+    tSNR=np.divide(mean, std)
+    tSNR_file=os.abs.abspath('tSNR.nii.gz')
+    nb.Nifti1Image(tSNR, img.affine, img.header).to_filename(tSNR_file)
+    return mel_out,tSNR_file
