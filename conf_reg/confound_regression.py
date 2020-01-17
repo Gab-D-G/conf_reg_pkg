@@ -38,7 +38,7 @@ parser.add_argument('--aroma_dim', type=int,
 parser.add_argument('--conf_list', type=str,
                     nargs="*",  # 0 or more values expected => creates a list
                     default=[],
-                    help='list of regressors. Possible options: WM_signal,CSF_signal,aCompCor,global_signal,mot_6,mot_24, mean_FD')
+                    help='list of regressors. Possible options: WM_signal,CSF_signal,vascular_signal,aCompCor,global_signal,mot_6,mot_24, mean_FD')
 parser.add_argument('--apply_scrubbing', dest='apply_scrubbing', action='store_true',
                     default=False,
                     help="""Whether to apply scrubbing or not. A temporal mask will be generated based on the FD threshold.

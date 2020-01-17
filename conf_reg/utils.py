@@ -96,7 +96,7 @@ def regress(bold_file, brain_mask_file, confounds_file, csf_mask, FD_file, conf_
         img=nb.load(bold_file)
         lowcut=int(timeseries_interval.split(',')[0])
         highcut=int(timeseries_interval.split(',')[1])
-        bold_file=os.abs.abspath('selected_timeseries.nii.gz')
+        bold_file=os.path.abspath('selected_timeseries.nii.gz')
         nb.Nifti1Image(np.asarray(img.dataobj)[:,:,:,lowcut:highcut], img.affine, img.header).to_filename(bold_file)
 
     confounds=pd.read_csv(confounds_file)
@@ -147,7 +147,7 @@ def data_diagnosis(bold_file, cleaned_path, brain_mask_file, TR):
     import os
     import nibabel as nb
     import numpy as np
-    mel_out=os.abs.abspath('melodic.ica/')
+    mel_out=os.path.abspath('melodic.ica/')
     os.mkdir(mel_out)
     os.system('melodic -i %s -o %s --tr %s -m %s --report' % (cleaned_path, mel_out, TR, brain_mask_file))
     img=nb.load(bold_file)
@@ -155,6 +155,6 @@ def data_diagnosis(bold_file, cleaned_path, brain_mask_file, TR):
     mean=array.mean(axis=3)
     std=array.std(axis=3)
     tSNR=np.divide(mean, std)
-    tSNR_file=os.abs.abspath('tSNR.nii.gz')
+    tSNR_file=os.path.abspath('tSNR.nii.gz')
     nb.Nifti1Image(tSNR, img.affine, img.header).to_filename(tSNR_file)
     return mel_out,tSNR_file
