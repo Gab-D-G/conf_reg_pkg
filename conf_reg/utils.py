@@ -84,20 +84,24 @@ def scrubbing(img, FD_file, scrubbing_threshold):
     masked_img=np.asarray(img.dataobj)[:,:,:,mask.astype(bool)]
     return nb.Nifti1Image(masked_img, img.affine, img.header)
 
-def regress(bold_file, brain_mask_file, confounds_file, csf_mask, FD_file, conf_list, TR, lowpass, highpass, smoothing_filter, run_aroma, aroma_dim, apply_scrubbing, scrubbing_threshold, timeseries_interval, out_dir):
+def select_timeseries(bold_file,timeseries_interval):
+    import os
+    import numpy as np
+    import nibabel as nb
+    img=nb.load(bold_file)
+    lowcut=int(timeseries_interval.split(',')[0])
+    highcut=int(timeseries_interval.split(',')[1])
+    bold_file=os.path.abspath('selected_timeseries.nii.gz')
+    nb.Nifti1Image(np.asarray(img.dataobj)[:,:,:,lowcut:highcut], img.affine, img.header).to_filename(bold_file)
+    return bold_file
+
+def regress(scan_info,bold_file, brain_mask_file, confounds_file, csf_mask, FD_file, conf_list, TR, lowpass, highpass, smoothing_filter, run_aroma, aroma_dim, apply_scrubbing, scrubbing_threshold, out_dir):
     import os
     import pandas as pd
     import numpy as np
     import nibabel as nb
     import nilearn.image
     from conf_reg.utils import find_scans,scrubbing,exec_ICA_AROMA,csv2par
-
-    if not timeseries_interval=='all':
-        img=nb.load(bold_file)
-        lowcut=int(timeseries_interval.split(',')[0])
-        highcut=int(timeseries_interval.split(',')[1])
-        bold_file=os.path.abspath('selected_timeseries.nii.gz')
-        nb.Nifti1Image(np.asarray(img.dataobj)[:,:,:,lowcut:highcut], img.affine, img.header).to_filename(bold_file)
 
     confounds=pd.read_csv(confounds_file)
     keys=confounds.keys()
@@ -141,15 +145,16 @@ def regress(bold_file, brain_mask_file, confounds_file, csf_mask, FD_file, conf_
         cleaned=scrubbing(cleaned, FD_file, scrubbing_threshold)
     cleaned_path=out_dir+'/'+scan_info+'_cleaned.nii.gz'
     cleaned.to_filename(cleaned_path)
-    return cleaned_path
+    return cleaned_path, bold_file
 
-def data_diagnosis(bold_file, cleaned_path, brain_mask_file, TR):
+def data_diagnosis(bold_file, cleaned_path, brain_mask_file):
     import os
     import nibabel as nb
     import numpy as np
     mel_out=os.path.abspath('melodic.ica/')
     os.mkdir(mel_out)
-    os.system('melodic -i %s -o %s --tr %s -m %s --report' % (cleaned_path, mel_out, TR, brain_mask_file))
+    command='melodic -i %s -o %s -m %s --report' % (cleaned_path, mel_out, brain_mask_file)
+    os.system(command)
     img=nb.load(bold_file)
     array=np.asarray(img.dataobj)
     mean=array.mean(axis=3)

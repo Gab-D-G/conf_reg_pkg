@@ -2,7 +2,7 @@
 
 import os
 import sys
-from utils import regress,tree_list,get_info_list,find_scans, data_diagnosis
+from utils import regress,tree_list,get_info_list,find_scans, data_diagnosis, select_timeseries
 import argparse
 
 """Build parser object"""
@@ -113,9 +113,9 @@ find_scans_node.inputs.csf_mask_files = csf_mask_files
 find_scans_node.inputs.confounds_files = confounds_files
 find_scans_node.inputs.FD_files = FD_files
 
-regress_node = pe.Node(Function(input_names=['bold_file', 'brain_mask_file', 'confounds_file', 'csf_mask', 'FD_file', 'conf_list',
-                                             'TR', 'lowpass', 'highpass', 'smoothing_filter', 'run_aroma', 'aroma_dim', 'apply_scrubbing', 'scrubbing_threshold', 'timeseries_interval', 'out_dir'],
-                          output_names=['cleaned_img'],
+regress_node = pe.Node(Function(input_names=['scan_info','bold_file', 'brain_mask_file', 'confounds_file', 'csf_mask', 'FD_file', 'conf_list',
+                                             'TR', 'lowpass', 'highpass', 'smoothing_filter', 'run_aroma', 'aroma_dim', 'apply_scrubbing', 'scrubbing_threshold', 'out_dir'],
+                          output_names=['cleaned_path', 'bold_file'],
                           function=regress),
                  name='regress')
 regress_node.inputs.conf_list = conf_list
@@ -128,15 +128,16 @@ regress_node.inputs.aroma_dim = aroma_dim
 regress_node.inputs.apply_scrubbing = apply_scrubbing
 regress_node.inputs.scrubbing_threshold = scrubbing_threshold
 regress_node.inputs.out_dir = out_dir
-regress_node.inputs.timeseries_interval = timeseries_interval
 
 workflow = pe.Workflow(name='confound_regression')
 workflow.connect([
     (info_node, find_scans_node, [
         ("scan_info", "scan_info"),
         ]),
+    (info_node, regress_node, [
+        ("scan_info", "scan_info"),
+        ]),
     (find_scans_node, regress_node, [
-        ("bold_file", "bold_file"),
         ("brain_mask_file", "brain_mask_file"),
         ("confounds_file", "confounds_file"),
         ("csf_mask", "csf_mask"),
@@ -144,19 +145,42 @@ workflow.connect([
         ]),
     ])
 
+
+if not timeseries_interval=='all':
+    select_timeseries_node = pe.Node(Function(input_names=['bold_file', 'timeseries_interval'],
+                              output_names=['bold_file'],
+                              function=select_timeseries),
+                     name='select_timeseries')
+    select_timeseries_node.inputs.timeseries_interval = timeseries_interval
+
+    workflow.connect([
+        (find_scans_node, select_timeseries_node, [
+            ("bold_file", "bold_file"),
+            ]),
+        (select_timeseries_node, regress_node, [
+            ("bold_file", "bold_file"),
+            ]),
+        ])
+else:
+    workflow.connect([
+        (find_scans_node, regress_node, [
+            ("bold_file", "bold_file"),
+            ]),
+        ])
+
+
 if diagnosis_output:
-    data_diagnosis_node = pe.Node(Function(input_names=['bold_file', 'cleaned_path', 'brain_mask_file', 'TR'],
+    data_diagnosis_node = pe.Node(Function(input_names=['bold_file', 'cleaned_path', 'brain_mask_file'],
                               output_names=['mel_out','tSNR_file'],
                               function=data_diagnosis),
                      name='data_diagnosis')
-    data_diagnosis_node.inputs.TR = TR
     workflow.connect([
         (find_scans_node, data_diagnosis_node, [
-            ("bold_file", "bold_file"),
             ("brain_mask_file", "brain_mask_file"),
             ]),
         (regress_node, data_diagnosis_node, [
             ("cleaned_path", "cleaned_path"),
+            ("bold_file", "bold_file"),
             ]),
         ])
 
