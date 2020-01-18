@@ -95,7 +95,7 @@ def select_timeseries(bold_file,timeseries_interval):
     nb.Nifti1Image(np.asarray(img.dataobj)[:,:,:,lowcut:highcut], img.affine, img.header).to_filename(bold_file)
     return bold_file
 
-def regress(scan_info,bold_file, brain_mask_file, confounds_file, csf_mask, FD_file, conf_list, TR, lowpass, highpass, smoothing_filter, run_aroma, aroma_dim, apply_scrubbing, scrubbing_threshold, out_dir):
+def regress(scan_info,bold_file, brain_mask_file, confounds_file, csf_mask, FD_file, conf_list, TR, lowpass, highpass, smoothing_filter, run_aroma, aroma_dim, apply_scrubbing, scrubbing_threshold, timeseries_interval, out_dir):
     import os
     import pandas as pd
     import numpy as np
@@ -138,6 +138,10 @@ def regress(scan_info,bold_file, brain_mask_file, confounds_file, csf_mask, FD_f
         cleaning_input=exec_ICA_AROMA(smooth_path, out_dir+'/%s_aroma' % (scan_info), csv2par(confounds_file), brain_mask_file, csf_mask, TR, aroma_dim)
     if len(confounds_list)>0:
         confounds_array=np.transpose(np.asarray(confounds_list))
+        if not timeseries_interval=='all':
+            lowcut=int(timeseries_interval.split(',')[0])
+            highcut=int(timeseries_interval.split(',')[1])
+            confounds_array=confounds_array[lowcut:highcut,:]
         cleaned = nilearn.image.clean_img(cleaning_input, detrend=True, standardize=True, low_pass=lowpass, high_pass=highpass, confounds=confounds_array, t_r=TR, mask_img=brain_mask_file)
     else:
         cleaned = nilearn.image.clean_img(cleaning_input, detrend=True, standardize=True, low_pass=lowpass, high_pass=highpass, confounds=None, t_r=TR, mask_img=brain_mask_file)

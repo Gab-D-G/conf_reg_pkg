@@ -114,7 +114,7 @@ find_scans_node.inputs.confounds_files = confounds_files
 find_scans_node.inputs.FD_files = FD_files
 
 regress_node = pe.Node(Function(input_names=['scan_info','bold_file', 'brain_mask_file', 'confounds_file', 'csf_mask', 'FD_file', 'conf_list',
-                                             'TR', 'lowpass', 'highpass', 'smoothing_filter', 'run_aroma', 'aroma_dim', 'apply_scrubbing', 'scrubbing_threshold', 'out_dir'],
+                                             'TR', 'lowpass', 'highpass', 'smoothing_filter', 'run_aroma', 'aroma_dim', 'apply_scrubbing', 'scrubbing_threshold', 'timeseries_interval', 'out_dir'],
                           output_names=['cleaned_path', 'bold_file'],
                           function=regress),
                  name='regress')
@@ -127,6 +127,7 @@ regress_node.inputs.run_aroma = run_aroma
 regress_node.inputs.aroma_dim = aroma_dim
 regress_node.inputs.apply_scrubbing = apply_scrubbing
 regress_node.inputs.scrubbing_threshold = scrubbing_threshold
+regress_node.inputs.timeseries_interval = timeseries_interval
 regress_node.inputs.out_dir = out_dir
 
 workflow = pe.Workflow(name='confound_regression')
