@@ -56,6 +56,10 @@ parser.add_argument('--diagnosis_output', dest='diagnosis_output', action='store
                     default=False,
                     help="Run a diagnosis for each image by computing melodic-ICA on the corrected timeseries,"
                          "and compute a tSNR map from the input uncorrected image.")
+parser.add_argument('--seed_list', type=str,
+                    nargs="*",  # 0 or more values expected => creates a list
+                    default=[],
+                    help='Can provide a list of seed .nii images that will be used to evaluate seed-based correlation maps during data diagnosis.')
 
 
 # parse the command line
@@ -76,7 +80,7 @@ scrubbing_threshold=args.scrubbing_threshold
 plugin=args.plugin
 timeseries_interval=args.timeseries_interval
 diagnosis_output=args.diagnosis_output
-
+seed_list=args.seed_list
 
 if commonspace_bold:
     bold_files=tree_list(os.path.abspath(rabies_out)+'/bold_datasink/commonspace_bold')
@@ -171,10 +175,11 @@ else:
 
 
 if diagnosis_output:
-    data_diagnosis_node = pe.Node(Function(input_names=['bold_file', 'cleaned_path', 'brain_mask_file'],
-                              output_names=['mel_out','tSNR_file'],
+    data_diagnosis_node = pe.Node(Function(input_names=['bold_file', 'cleaned_path', 'brain_mask_file', 'seed_list'],
+                              output_names=['mel_out','tSNR_file','corr_map_list'],
                               function=data_diagnosis),
                      name='data_diagnosis')
+    data_diagnosis_node.inputs.seed_list=seed_list
     workflow.connect([
         (find_scans_node, data_diagnosis_node, [
             ("brain_mask_file", "brain_mask_file"),

@@ -151,7 +151,7 @@ def regress(scan_info,bold_file, brain_mask_file, confounds_file, csf_mask, FD_f
     cleaned.to_filename(cleaned_path)
     return cleaned_path, bold_file
 
-def data_diagnosis(bold_file, cleaned_path, brain_mask_file):
+def data_diagnosis(bold_file, cleaned_path, brain_mask_file, seed_list):
     import os
     import nibabel as nb
     import numpy as np
@@ -166,4 +166,47 @@ def data_diagnosis(bold_file, cleaned_path, brain_mask_file):
     tSNR=np.divide(mean, std)
     tSNR_file=os.path.abspath('tSNR.nii.gz')
     nb.Nifti1Image(tSNR, img.affine, img.header).to_filename(tSNR_file)
-    return mel_out,tSNR_file
+
+    def seed_based_FC(bold_file, brain_mask, seed):
+        import os
+        import nibabel as nb
+        import numpy as np
+        from nilearn.input_data import NiftiMasker
+        img=nb.load(bold_file)
+        array=np.asarray(img.dataobj)
+
+        masker = NiftiMasker(mask_img=nb.load(seed), standardize=False, verbose=0)
+        voxel_seed_timeseries = masker.fit_transform(bold_file) #extract the voxel timeseries within the mask
+        seed_timeseries=np.mean(voxel_seed_timeseries, axis=1) #take the mean ROI timeseries
+
+        mask_array=np.asarray(nb.load(brain_mask).dataobj)
+        mask_vector=mask_array.reshape(-1)
+        mask_indices=(mask_vector==True)
+
+        timeseries_array=np.asarray(nb.load(bold_file).dataobj)
+        sub_timeseries=np.zeros([mask_indices.sum(),timeseries_array.shape[3]])
+        for t in range(timeseries_array.shape[3]):
+            sub_timeseries[:,t]=(timeseries_array[:,:,:,t].reshape(-1))[mask_indices]
+
+        #return a correlation between each row of X with y
+        def vcorrcoef(X,y):
+            Xm = np.reshape(np.mean(X,axis=1),(X.shape[0],1))
+            ym = np.mean(y)
+            r_num = np.sum((X-Xm)*(y-ym),axis=1)
+            r_den = np.sqrt(np.sum((X-Xm)**2,axis=1)*np.sum((y-ym)**2))
+            r = r_num/r_den
+            return r
+        corrs=vcorrcoef(sub_timeseries,seed_timeseries)
+
+        mask_vector[mask_indices]=corrs
+        corr_map=mask_vector.reshape(mask_array.shape)
+        corr_map_file=os.path.abspath(os.path.basename(seed).split('.nii')[0]+'_corr_map.nii.gz')
+        nb.Nifti1Image(corr_map, nb.load(brain_mask).affine, nb.load(brain_mask).header).to_filename(corr_map_file)
+        return corr_map_file
+
+    corr_map_list=[]
+    for seed in seed_list:
+        corr_map_file=seed_based_FC(bold_file, brain_mask_file, seed)
+        corr_map_list.append(corr_map_file)
+
+    return mel_out, tSNR_file, corr_map_list
