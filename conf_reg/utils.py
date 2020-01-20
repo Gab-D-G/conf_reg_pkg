@@ -206,7 +206,8 @@ def data_diagnosis(bold_file, cleaned_path, brain_mask_file, seed_list):
 
     corr_map_list=[]
     for seed in seed_list:
-        corr_map_file=seed_based_FC(bold_file, brain_mask_file, seed)
+        os.system('antsApplyTransforms -i %s -r %s -o %s -n GenericLabel' % (seed, brain_mask_file, os.path.abspath(os.path.basename(seed))))
+        corr_map_file=seed_based_FC(cleaned_path, brain_mask_file, seed)
         corr_map_list.append(corr_map_file)
 
     return mel_out, tSNR_file, corr_map_list
