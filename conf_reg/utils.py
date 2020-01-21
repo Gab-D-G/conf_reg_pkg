@@ -67,7 +67,7 @@ def csv2par(in_confounds):
     new_df.to_csv(out_confounds, sep='\t', index=False, header=False)
     return out_confounds
 
-def scrubbing(img, FD_file, scrubbing_threshold):
+def scrubbing(img, FD_file, scrubbing_threshold,timeseries_interval):
     '''
     Scrubbing based on FD: The frames that exceed the given threshold together with 1 back
     and 2 forward frames will be masked out from the data (as in Power et al. 2012)
@@ -81,6 +81,12 @@ def scrubbing(img, FD_file, scrubbing_threshold):
     for i in range(len(mask)):
         if cutoff[i]:
             mask[i-1:i+2]=0
+
+    if not timeseries_interval=='all':
+        lowcut=int(timeseries_interval.split(',')[0])
+        highcut=int(timeseries_interval.split(',')[1])
+        mask=mask[lowcut:highcut]
+
     masked_img=np.asarray(img.dataobj)[:,:,:,mask.astype(bool)]
     return nb.Nifti1Image(masked_img, img.affine, img.header)
 
@@ -146,7 +152,7 @@ def regress(scan_info,bold_file, brain_mask_file, confounds_file, csf_mask, FD_f
     else:
         cleaned = nilearn.image.clean_img(cleaning_input, detrend=True, standardize=True, low_pass=lowpass, high_pass=highpass, confounds=None, t_r=TR, mask_img=brain_mask_file)
     if apply_scrubbing:
-        cleaned=scrubbing(cleaned, FD_file, scrubbing_threshold)
+        cleaned=scrubbing(cleaned, FD_file, scrubbing_threshold, timeseries_interval)
     cleaned_path=out_dir+'/'+scan_info+'_cleaned.nii.gz'
     cleaned.to_filename(cleaned_path)
     return cleaned_path, bold_file

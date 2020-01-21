@@ -20,6 +20,8 @@ parser.add_argument('output_dir', type=str,
                     help='will drop corrected image in that folder')
 parser.add_argument('--commonspace_bold', dest='commonspace_bold', action='store_true',
                     help='If should run confound regression on a commonspace bold output.')
+parser.add_argument('--bold_only', dest='bold_only', action='store_true',
+                    help='If RABIES was run with the bold_only option.')
 parser.add_argument('--highpass', type=float, default=None,
                     help='Specify highpass filter frequency.')
 parser.add_argument('--lowpass', type=float, default=None,
@@ -68,6 +70,7 @@ args = parser.parse_args()
 rabies_out=args.rabies_out
 out_dir=os.path.abspath(args.output_dir)
 commonspace_bold=args.commonspace_bold
+bold_only=args.bold_only
 lowpass=args.lowpass
 highpass=args.highpass
 smoothing_filter=args.smoothing_filter
@@ -82,14 +85,19 @@ timeseries_interval=args.timeseries_interval
 diagnosis_output=args.diagnosis_output
 seed_list=args.seed_list
 
-if commonspace_bold:
-    bold_files=tree_list(os.path.abspath(rabies_out)+'/bold_datasink/commonspace_bold')
-    brain_mask_files=tree_list(os.path.abspath(rabies_out)+'/bold_datasink/commonspace_bold_mask')
-    csf_mask_files=tree_list(os.path.abspath(rabies_out)+'/bold_datasink/commonspace_bold_CSF_mask')
-else:
+if bold_only:
     bold_files=tree_list(os.path.abspath(rabies_out)+'/bold_datasink/corrected_bold')
     brain_mask_files=tree_list(os.path.abspath(rabies_out)+'/bold_datasink/bold_brain_mask')
     csf_mask_files=tree_list(os.path.abspath(rabies_out)+'/bold_datasink/bold_CSF_mask')
+else:
+    if commonspace_bold:
+        bold_files=tree_list(os.path.abspath(rabies_out)+'/bold_datasink/commonspace_bold')
+        brain_mask_files=tree_list(os.path.abspath(rabies_out)+'/bold_datasink/commonspace_bold_mask')
+        csf_mask_files=tree_list(os.path.abspath(rabies_out)+'/bold_datasink/commonspace_bold_CSF_mask')
+    else:
+        bold_files=tree_list(os.path.abspath(rabies_out)+'/bold_datasink/corrected_bold')
+        brain_mask_files=tree_list(os.path.abspath(rabies_out)+'/bold_datasink/bold_brain_mask')
+        csf_mask_files=tree_list(os.path.abspath(rabies_out)+'/bold_datasink/bold_CSF_mask')
 
 confounds_files=tree_list(os.path.abspath(rabies_out)+'/confounds_datasink/confounds_csv')
 FD_files=tree_list(os.path.abspath(rabies_out)+'/confounds_datasink/FD_csv')
