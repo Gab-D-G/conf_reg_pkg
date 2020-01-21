@@ -5,6 +5,7 @@ Confound regression approaches provided:
  * 24 motion parameters (6 rigid, temporal derivative and the all parameters squared)
  * Framewise displacement
  * WM and CSF signals
+ * vascular signals
  * aCompCorr
  * Global signal
  * ICA-AROMA
