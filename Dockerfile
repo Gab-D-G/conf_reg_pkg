@@ -37,11 +37,47 @@ RUN mkdir src && \
     cd ../../ && \
     rm -rf src
 
-
 WORKDIR /home/conf_reg
 ENV HOME="/home/conf_reg"
 
-### install ANTs and FSL
+
+
+ENV FSLDIR="/opt/fsl-5.0.10" \
+    PATH="/opt/fsl-5.0.10/bin:$PATH"
+RUN apt-get update -qq \
+    && apt-get install -y -q --no-install-recommends \
+           bc \
+           dc \
+           file \
+           libfontconfig1 \
+           libfreetype6 \
+           libgl1-mesa-dev \
+           libgl1-mesa-dri \
+           libglu1-mesa-dev \
+           libgomp1 \
+           libice6 \
+           libxcursor1 \
+           libxft2 \
+           libxinerama1 \
+           libxrandr2 \
+           libxrender1 \
+           libxt6 \
+           sudo \
+           wget \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* \
+    && echo "Downloading FSL ..." \
+    && mkdir -p /opt/fsl-5.0.10 \
+    && curl -fsSL --retry 5 https://fsl.fmrib.ox.ac.uk/fsldownloads/fsl-5.0.10-centos6_64.tar.gz \
+    | tar -xz -C /opt/fsl-5.0.10 --strip-components 1 \
+    && sed -i '$iecho Some packages in this Docker container are non-free' $ND_ENTRYPOINT \
+    && sed -i '$iecho If you are considering commercial use of this container, please consult the relevant license:' $ND_ENTRYPOINT \
+    && sed -i '$iecho https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/Licence' $ND_ENTRYPOINT \
+    && sed -i '$isource $FSLDIR/etc/fslconf/fsl.sh' $ND_ENTRYPOINT \
+    && echo "Installing FSL conda environment ..." \
+    && bash /opt/fsl-5.0.10/etc/fslconf/fslpython_install.sh -f /opt/fsl-5.0.10
+
+### install ANTs
 RUN apt-get update -qq \
     && sudo apt-get install -y -q --no-install-recommends \
            gcc \
@@ -88,62 +124,33 @@ RUN apt-get update -qq \
     && rm -rf /tmp/ants
 
 
-# Installing Neurodebian packages (FSL)
-RUN apt-get install gnupg && \
-    curl -sSL "http://neuro.debian.net/lists/$( lsb_release -c | cut -f2 ).us-ca.full" >> /etc/apt/sources.list.d/neurodebian.sources.list && \
-    apt-key add /usr/local/etc/neurodebian.gpg && \
-    (apt-key adv --refresh-keys --keyserver hkp://ha.pool.sks-keyservers.net 0xA5D32F012649A5A9 || true)
 
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-                    fsl-core=5.0.9-5~nd16.04+1 \
-    apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
-
-ENV FSLDIR="/usr/share/fsl/5.0" \
-    FSLOUTPUTTYPE="NIFTI_GZ" \
-    FSLMULTIFILEQUIT="TRUE" \
-    POSSUMDIR="/usr/share/fsl/5.0" \
-    LD_LIBRARY_PATH="/usr/lib/fsl/5.0:$LD_LIBRARY_PATH" \
-    FSLTCLSH="/usr/bin/tclsh" \
-    FSLWISH="/usr/bin/wish"
-ENV PATH="/usr/lib/fsl/5.0:$PATH"
-
-
-RUN apt-get update && \
-  apt-get install -y --no-install-recommends htop nano wget imagemagick parallel zram-config debconf
-
-#Build tools and dependencies
-RUN echo ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true | debconf-set-selections && \
-  apt install -y --no-install-recommends build-essential gdebi-core \
-    git imagemagick libssl-dev cmake autotools-dev automake \
-    ed zlib1g-dev libxml2-dev libxslt-dev openjdk-8-jre \
-    zenity libcurl4-openssl-dev bc gawk libxkbcommon-x11-0 \
-    ttf-mscorefonts-installer bc
-
-#Install python environment
-
-ENV CONDA_DIR="$HOME/miniconda-latest" \
-    PATH="$HOME/miniconda-latest/bin:$PATH" \
-    ND_ENTRYPOINT="$HOME/startup.sh"
-
-RUN export PATH="$HOME/miniconda-latest/bin:$PATH" \
+ENV CONDA_DIR="/opt/miniconda-latest" \
+    PATH="/opt/miniconda-latest/bin:$PATH"
+RUN export PATH="/opt/miniconda-latest/bin:$PATH" \
     && echo "Downloading Miniconda installer ..." \
     && conda_installer="/tmp/miniconda.sh" \
     && curl -fsSL --retry 5 -o "$conda_installer" https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh \
-    && bash "$conda_installer" -b -p $HOME/miniconda-latest \
+    && bash "$conda_installer" -b -p /opt/miniconda-latest \
     && rm -f "$conda_installer" \
-    && conda install python=3.6.8 nibabel=2.3.1 nilearn=0.5.2 nipype=1.1.4 numpy=1.16.2 pandas=0.25.1 scikit-learn=0.20.0 scipy=1.3.1 \
-    && conda update -yq -nbase conda
-
-#### install conf_reg package
-
-RUN cd $HOME && \
-  git clone https://github.com/Gab-D-G/conf_reg_pkg && \
-  bash conf_reg_pkg/install.sh && \
-  chmod +x /home/conf_reg/conf_reg_pkg/conf_reg/confound_regression.py
-
-ENV QBATCH_SYSTEM local
-
-WORKDIR /tmp/
-
-ENTRYPOINT ["/home/conf_reg/conf_reg_pkg/conf_reg/confound_regression.py"]
+    && conda update -yq -nbase conda \
+    && conda config --system --prepend channels conda-forge \
+    && conda config --system --set auto_update_conda false \
+    && conda config --system --set show_channel_urls true \
+    && sync && conda clean --all && sync \
+    && conda create -y -q --name neuro \
+    && conda install -y -q --name neuro \
+           "python=3.6.8" \
+           "nibabel=2.3.1" \
+           "nilearn=0.5.2" \
+           "nipype=1.1.4" \
+           "numpy=1.16.2" \
+           "pandas=0.25.1" \
+           "scikit-learn=0.20.0" \
+           "scipy=1.3.1" \
+    && sync && conda clean --all && sync \
+    && bash -c "source activate neuro \
+    &&   pip install --no-cache-dir  \
+             "nipype"" \
+    && rm -rf ~/.cache/pip/* \
+    && sync
