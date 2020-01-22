@@ -40,42 +40,31 @@ RUN mkdir src && \
 WORKDIR /home/conf_reg
 ENV HOME="/home/conf_reg"
 
+# install FSL
+RUN sudo apt-get update && \
+  sudo apt-get install -y --no-install-recommends gnupg gnupg2 gnupg1
+RUN git clone https://github.com/poldracklab/mriqc.git && \
+  mv mriqc/docker/files/neurodebian.gpg $HOME && \
+  rm -rf mriqc
 
+RUN curl -sSL "http://neuro.debian.net/lists/$( lsb_release -c | cut -f2 ).us-ca.full" >> /etc/apt/sources.list.d/neurodebian.sources.list && \
+  sudo apt-key add /home/conf_reg/neurodebian.gpg && \
+  (apt-key adv --refresh-keys --keyserver hkp://ha.pool.sks-keyservers.net 0xA5D32F012649A5A9 || true)
 
-ENV FSLDIR="/opt/fsl-5.0.10" \
-    PATH="/opt/fsl-5.0.10/bin:$PATH"
-RUN apt-get update -qq \
-    && apt-get install -y -q --no-install-recommends \
-           bc \
-           dc \
-           file \
-           libfontconfig1 \
-           libfreetype6 \
-           libgl1-mesa-dev \
-           libgl1-mesa-dri \
-           libglu1-mesa-dev \
-           libgomp1 \
-           libice6 \
-           libxcursor1 \
-           libxft2 \
-           libxinerama1 \
-           libxrandr2 \
-           libxrender1 \
-           libxt6 \
-           sudo \
-           wget \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/* \
-    && echo "Downloading FSL ..." \
-    && mkdir -p /opt/fsl-5.0.10 \
-    && curl -fsSL --retry 5 https://fsl.fmrib.ox.ac.uk/fsldownloads/fsl-5.0.10-centos6_64.tar.gz \
-    | tar -xz -C /opt/fsl-5.0.10 --strip-components 1 \
-    && sed -i '$iecho Some packages in this Docker container are non-free' $ND_ENTRYPOINT \
-    && sed -i '$iecho If you are considering commercial use of this container, please consult the relevant license:' $ND_ENTRYPOINT \
-    && sed -i '$iecho https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/Licence' $ND_ENTRYPOINT \
-    && sed -i '$isource $FSLDIR/etc/fslconf/fsl.sh' $ND_ENTRYPOINT \
-    && echo "Installing FSL conda environment ..." \
-    && bash /opt/fsl-5.0.10/etc/fslconf/fslpython_install.sh -f /opt/fsl-5.0.10
+RUN sudo ln -fs /usr/share/zoneinfo/America/Montreal /etc/localtime && \
+  sudo apt-get install -y --no-install-recommends tzdata && \
+  sudo dpkg-reconfigure -f noninteractive tzdata && \
+  sudo apt-get update && \
+  sudo apt-get install -y --no-install-recommends fsl-core && \
+  sudo apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+# Configure FSL environment
+ENV export FSLDIR="/usr/share/fsl/5.0/" \
+  export FSL_DIR="${FSLDIR}" \
+  export FSLOUTPUTTYPE=NIFTI_GZ \
+  . ${FSLDIR}/etc/fslconf/fsl.sh \
+  export PATH="/usr/share/fsl/5.0/bin:$PATH" \
+  export LD_LIBRARY_PATH=/usr/lib/fsl/5.0:$LD_LIBRARY_PATH
 
 ### install ANTs
 RUN apt-get update -qq \
@@ -125,32 +114,43 @@ RUN apt-get update -qq \
 
 
 
-ENV CONDA_DIR="/opt/miniconda-latest" \
-    PATH="/opt/miniconda-latest/bin:$PATH"
-RUN export PATH="/opt/miniconda-latest/bin:$PATH" \
+#Install python environment
+
+ENV CONDA_DIR="$HOME/miniconda-latest" \
+    PATH="$HOME/miniconda-latest/bin:$PATH" \
+    ND_ENTRYPOINT="$HOME/startup.sh"
+
+RUN export PATH="$HOME/miniconda-latest/bin:$PATH" \
     && echo "Downloading Miniconda installer ..." \
     && conda_installer="/tmp/miniconda.sh" \
     && curl -fsSL --retry 5 -o "$conda_installer" https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh \
-    && bash "$conda_installer" -b -p /opt/miniconda-latest \
+    && bash "$conda_installer" -b -p $HOME/miniconda-latest \
     && rm -f "$conda_installer" \
-    && conda update -yq -nbase conda \
-    && conda config --system --prepend channels conda-forge \
-    && conda config --system --set auto_update_conda false \
-    && conda config --system --set show_channel_urls true \
-    && sync && conda clean --all && sync \
-    && conda create -y -q --name neuro \
-    && conda install -y -q --name neuro \
-           "python=3.6.8" \
-           "nibabel=2.3.1" \
-           "nilearn=0.5.2" \
-           "nipype=1.1.4" \
-           "numpy=1.16.2" \
-           "pandas=0.25.1" \
-           "scikit-learn=0.20.0" \
-           "scipy=1.3.1" \
-    && sync && conda clean --all && sync \
-    && bash -c "source activate neuro \
-    &&   pip install --no-cache-dir  \
-             "nipype"" \
-    && rm -rf ~/.cache/pip/* \
-    && sync
+    && conda update -yq -nbase conda
+
+RUN mkdir -p temp && \
+    curl -L --retry 5 -o temp/RABIES.tar.gz https://github.com/CoBrALab/RABIES/archive/0.1.2.tar.gz && \
+    cd temp && \
+    tar zxf RABIES.tar.gz && \
+    cd .. && \
+    conda env create -f temp/RABIES-0.1.2/rabies_environment.yml && \
+    rm -r temp
+
+# install confound regression package
+RUN git clone https://github.com/Gab-D-G/conf_reg_pkg.git $HOME/conf_reg_pkg && \
+  echo export PYTHONPATH='${PYTHONPATH}':$HOME/conf_reg_pkg >> $HOME/.bashrc && \
+  echo export PATH='$PATH':$HOME/conf_reg_pkg/conf_reg >> $HOME/.bashrc
+
+RUN echo "#! /home/conf_reg/miniconda-latest/envs/rabies/bin/python" > temp && \
+  echo "import os" >> temp && \
+  echo "import sys" >> temp && \
+  echo "os.environ['PATH'] = '${HOME}/conf_reg_pkg/conf_reg:${HOME}/miniconda-latest/envs/rabies/bin:${PATH}'" >> temp && \
+  echo "os.environ['PYTHONPATH'] = '${HOME}/conf_reg_pkg:${PYTHONPATH}'" >> temp && \
+  echo "sys.path.insert(0,'${HOME}/conf_reg_pkg')" >> temp && \
+  cat temp | cat - $HOME/conf_reg_pkg/conf_reg/confound_regression.py > tmp && mv tmp $HOME/conf_reg_pkg/conf_reg/confound_regression.py && \
+  chmod +x $HOME/conf_reg_pkg/conf_reg/confound_regression.py
+
+WORKDIR /tmp/
+RUN /bin/bash -c "source activate rabies"
+
+ENTRYPOINT ["/home/conf_reg/conf_reg_pkg/conf_reg/confound_regression.py"]

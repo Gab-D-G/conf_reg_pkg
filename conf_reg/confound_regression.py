@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import os
 import sys
 from utils import regress,tree_list,get_info_list,find_scans, data_diagnosis, select_timeseries
