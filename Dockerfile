@@ -141,12 +141,23 @@ RUN git clone https://github.com/Gab-D-G/conf_reg_pkg.git $HOME/conf_reg_pkg && 
   echo export PYTHONPATH='${PYTHONPATH}':$HOME/conf_reg_pkg >> $HOME/.bashrc && \
   echo export PATH='$PATH':$HOME/conf_reg_pkg/conf_reg >> $HOME/.bashrc
 
-RUN echo "#! /home/conf_reg/miniconda-latest/envs/rabies/bin/python" > temp && \
+RUN export FSLDIR="/usr/share/fsl/5.0/" && \
+  export FSL_DIR="${FSLDIR}" && \
+  export FSLOUTPUTTYPE=NIFTI_GZ && \
+  . ${FSLDIR}/etc/fslconf/fsl.sh && \
+  export PATH="/usr/share/fsl/5.0/bin:$PATH" && \
+  export LD_LIBRARY_PATH=/usr/lib/fsl/5.0:$LD_LIBRARY_PATH && \
+  echo "#! /home/conf_reg/miniconda-latest/envs/rabies/bin/python" > temp && \
   echo "import os" >> temp && \
   echo "import sys" >> temp && \
   echo "os.environ['PATH'] = '${HOME}/conf_reg_pkg/conf_reg:${HOME}/miniconda-latest/envs/rabies/bin:${PATH}'" >> temp && \
   echo "os.environ['PYTHONPATH'] = '${HOME}/conf_reg_pkg:${PYTHONPATH}'" >> temp && \
   echo "sys.path.insert(0,'${HOME}/conf_reg_pkg')" >> temp && \
+  echo "os.environ['FSLDIR'] = '/usr/share/fsl/5.0/'" >> temp && \
+  echo "os.environ['FSL_DIR'] = '${FSLDIR}'" >> temp && \
+  echo "os.environ['FSLOUTPUTTYPE'] = 'NIFTI_GZ'" >> temp && \
+  echo "os.environ['PATH'] = '/usr/share/fsl/5.0/bin:${PATH}'" >> temp && \
+  echo "os.environ['LD_LIBRARY_PATH'] = '/usr/lib/fsl/5.0:${LD_LIBRARY_PATH}'" >> temp && \
   cat temp | cat - $HOME/conf_reg_pkg/conf_reg/confound_regression.py > tmp && mv tmp $HOME/conf_reg_pkg/conf_reg/confound_regression.py && \
   chmod +x $HOME/conf_reg_pkg/conf_reg/confound_regression.py
 

@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import os
 import sys
 from utils import regress,tree_list,get_info_list,find_scans, data_diagnosis, select_timeseries
@@ -50,6 +51,8 @@ parser.add_argument('--scrubbing_threshold', type=float,
 parser.add_argument("-p", "--plugin", type=str, default='Linear',
                     help="Specify the nipype plugin for workflow execution. Consult nipype plugin documentation for detailed options."
                          " Linear, MultiProc, SGE and SGEGraph have been tested.")
+parser.add_argument("--min_proc", type=int, default=1,
+                    help="For parallel processing, specify the minimal number of nodes to be assigned.")
 parser.add_argument('--timeseries_interval', type=str, default='all',
                     help='Specify which timepoints to keep. e.g. "0,80".')
 parser.add_argument('--diagnosis_output', dest='diagnosis_output', action='store_true',
@@ -82,6 +85,7 @@ plugin=args.plugin
 timeseries_interval=args.timeseries_interval
 diagnosis_output=args.diagnosis_output
 seed_list=args.seed_list
+min_proc=args.min_proc
 
 if bold_only:
     bold_files=tree_list(os.path.abspath(rabies_out)+'/bold_datasink/corrected_bold')
@@ -109,14 +113,14 @@ from nipype.interfaces import utility as niu
 from nipype.interfaces.utility import Function
 
 info_node = pe.Node(niu.IdentityInterface(fields=['scan_info']),
-                  name="info_node")
+                  name="info_node", mem_gb=1)
 info_node.iterables = [('scan_info', scan_list)]
 
 
 find_scans_node = pe.Node(Function(input_names=['scan_info', 'bold_files', 'brain_mask_files', 'confounds_files', 'csf_mask_files', 'FD_files'],
                           output_names=['bold_file', 'brain_mask_file', 'confounds_file', 'csf_mask', 'FD_file'],
                           function=find_scans),
-                 name='find_scans')
+                 name='find_scans', mem_gb=1)
 find_scans_node.inputs.bold_files = bold_files
 find_scans_node.inputs.brain_mask_files = brain_mask_files
 find_scans_node.inputs.csf_mask_files = csf_mask_files
@@ -127,7 +131,7 @@ regress_node = pe.Node(Function(input_names=['scan_info','bold_file', 'brain_mas
                                              'TR', 'lowpass', 'highpass', 'smoothing_filter', 'run_aroma', 'aroma_dim', 'apply_scrubbing', 'scrubbing_threshold', 'timeseries_interval', 'out_dir'],
                           output_names=['cleaned_path', 'bold_file'],
                           function=regress),
-                 name='regress')
+                 name='regress', mem_gb=1)
 regress_node.inputs.conf_list = conf_list
 regress_node.inputs.TR = TR
 regress_node.inputs.lowpass = lowpass
@@ -161,7 +165,7 @@ if not timeseries_interval=='all':
     select_timeseries_node = pe.Node(Function(input_names=['bold_file', 'timeseries_interval'],
                               output_names=['bold_file'],
                               function=select_timeseries),
-                     name='select_timeseries')
+                     name='select_timeseries', mem_gb=1)
     select_timeseries_node.inputs.timeseries_interval = timeseries_interval
 
     workflow.connect([
@@ -184,7 +188,7 @@ if diagnosis_output:
     data_diagnosis_node = pe.Node(Function(input_names=['bold_file', 'cleaned_path', 'brain_mask_file', 'seed_list'],
                               output_names=['mel_out','tSNR_file','corr_map_list'],
                               function=data_diagnosis),
-                     name='data_diagnosis')
+                     name='data_diagnosis', mem_gb=1)
     data_diagnosis_node.inputs.seed_list=seed_list
     workflow.connect([
         (find_scans_node, data_diagnosis_node, [
@@ -201,4 +205,6 @@ workflow.base_dir = out_dir
 
 workflow.config['execution'] = {'log_directory' : os.getcwd()}
 
-workflow.run(plugin=plugin, plugin_args = {'max_jobs':50,'dont_resubmit_completed_jobs': True})
+print('Running main workflow with %s plugin.' % plugin)
+#execute workflow, with plugin_args limiting the cluster load for parallel execution
+workflow.run(plugin=plugin, plugin_args = {'max_jobs':50,'dont_resubmit_completed_jobs': True, 'qsub_args': '-pe smp %s' % (int(min_proc))})
