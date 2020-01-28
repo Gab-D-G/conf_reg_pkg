@@ -66,6 +66,13 @@ ENV export FSLDIR="/usr/share/fsl/5.0/" \
   export PATH="/usr/share/fsl/5.0/bin:$PATH" \
   export LD_LIBRARY_PATH=/usr/lib/fsl/5.0:$LD_LIBRARY_PATH
 
+# Configure FSL environment
+RUN echo "export FSLDIR='/usr/share/fsl/5.0/'" >> $HOME/.bashrc \
+  echo "export FSL_DIR='${FSLDIR}'" >> $HOME/.bashrc \
+  echo "export FSLOUTPUTTYPE=NIFTI_GZ" >> $HOME/.bashrc \
+  echo "export PATH='/usr/share/fsl/5.0/bin:$PATH'" >> $HOME/.bashrc \
+  "export LD_LIBRARY_PATH=/usr/lib/fsl/5.0:$LD_LIBRARY_PATH" >> $HOME/.bashrc
+
 ### install ANTs
 RUN apt-get update -qq \
     && sudo apt-get install -y -q --no-install-recommends \
@@ -160,14 +167,6 @@ RUN export FSLDIR="/usr/share/fsl/5.0/" && \
   echo "os.environ['LD_LIBRARY_PATH'] = '/usr/lib/fsl/5.0:${LD_LIBRARY_PATH}'" >> temp && \
   cat temp | cat - $HOME/conf_reg_pkg/conf_reg/confound_regression.py > tmp && mv tmp $HOME/conf_reg_pkg/conf_reg/confound_regression.py && \
   chmod +x $HOME/conf_reg_pkg/conf_reg/confound_regression.py
-
-# Configure FSL environment
-RUN echo "export FSLDIR='/usr/share/fsl/5.0/'" >> $HOME/.bashrc \
-  echo "export FSL_DIR='${FSLDIR}'" >> $HOME/.bashrc \
-  echo "export FSLOUTPUTTYPE=NIFTI_GZ" >> $HOME/.bashrc \
-  echo "export PATH='/usr/share/fsl/5.0/bin:$PATH'" >> $HOME/.bashrc \
-  "export LD_LIBRARY_PATH=/usr/lib/fsl/5.0:$LD_LIBRARY_PATH" >> $HOME/.bashrc
-
 
 WORKDIR /tmp/
 RUN /bin/bash -c "source activate rabies"
