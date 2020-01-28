@@ -129,7 +129,7 @@ find_scans_node.inputs.FD_files = FD_files
 
 regress_node = pe.Node(Function(input_names=['scan_info','bold_file', 'brain_mask_file', 'confounds_file', 'csf_mask', 'FD_file', 'conf_list',
                                              'TR', 'lowpass', 'highpass', 'smoothing_filter', 'run_aroma', 'aroma_dim', 'apply_scrubbing', 'scrubbing_threshold', 'timeseries_interval', 'out_dir'],
-                          output_names=['cleaned_path', 'bold_file'],
+                          output_names=['cleaned_path', 'bold_file', 'aroma_out'],
                           function=regress),
                  name='regress', mem_gb=1)
 regress_node.inputs.conf_list = conf_list

@@ -11,6 +11,135 @@ from builtins import range
 from past.utils import old_div
 import numpy as np
 
+def run_ICA_AROMA(outDir,inFile,mc,TR,mask="",mask_csf="",denType="nonaggr",melDir="",dim=0,overwrite=False):
+    import os
+    import subprocess
+    import shutil
+    import conf_reg.mod_ICA_AROMA.classification_plots as classification_plots
+    import conf_reg.mod_ICA_AROMA.ICA_AROMA_functions as aromafunc
+
+    # Change to script directory
+    cwd = os.path.realpath(os.path.curdir)
+    scriptDir = os.path.dirname(os.path.abspath(__file__))
+    os.chdir(scriptDir)
+
+    print('\n------------------------------- RUNNING ICA-AROMA ------------------------------- ')
+    print('--------------- \'ICA-based Automatic Removal Of Motion Artifacts\' --------------- \n')
+
+    # Define variables based on the type of input (i.e. Feat directory or specific input arguments), and check whether the specified files exist.
+    cancel = False
+
+    # Check whether the files exist
+    if not inFile:
+        print('No input file specified.')
+    else:
+        if not os.path.isfile(inFile):
+            print('The specified input file does not exist.')
+            cancel = True
+    if not mc:
+        print('No mc file specified.')
+    else:
+        if not os.path.isfile(mc):
+            print('The specified mc file does does not exist.')
+            cancel = True
+
+    # Check if the mask exists, when specified.
+    if mask:
+        if not os.path.isfile(mask):
+            print('The specified mask does not exist.')
+            cancel = True
+
+    # Check if the type of denoising is correctly specified, when specified
+    if not (denType == 'nonaggr') and not (denType == 'aggr') and not (denType == 'both') and not (denType == 'no'):
+        print('Type of denoising was not correctly specified. Non-aggressive denoising will be run.')
+        denType = 'nonaggr'
+
+    # If the criteria for file/directory specifications have not been met. Cancel ICA-AROMA.
+    if cancel:
+        print('\n----------------------------- ICA-AROMA IS CANCELED -----------------------------\n')
+        exit()
+
+    #------------------------------------------- PREPARE -------------------------------------------#
+
+    # Define the FSL-bin directory
+    fslDir = os.path.join(os.environ["FSLDIR"], 'bin', '')
+
+    # Create output directory if needed
+    if os.path.isdir(outDir) and overwrite is False:
+        print('Output directory', outDir, """already exists.
+              AROMA will not continue.
+              Rerun with the -overwrite option to explicitly overwrite existing output.""")
+        exit()
+    elif os.path.isdir(outDir) and overwrite is True:
+        print('Warning! Output directory', outDir, 'exists and will be overwritten.\n')
+        shutil.rmtree(outDir)
+        os.makedirs(outDir)
+    else:
+        os.makedirs(outDir)
+
+    # Get TR of the fMRI data, if not specified
+    if TR:
+        TR = TR
+    else:
+        cmd = ' '.join([os.path.join(fslDir, 'fslinfo'),
+                        inFile,
+                        '| grep pixdim4 | awk \'{print $2}\''])
+        TR = float(subprocess.getoutput(cmd))
+
+    # Check TR
+    if TR == 0:
+        print('TR is zero. ICA-AROMA requires a valid TR and will therefore exit. Please check the header, or define the TR as an additional argument.\n----------------------------- ICA-AROMA IS CANCELED -----------------------------\n')
+        exit()
+
+    # Define mask.
+    mask_cp = os.path.join(outDir, 'mask.nii.gz')
+    shutil.copyfile(mask, mask_cp)
+    mask=mask_cp
+
+
+    #---------------------------------------- Run ICA-AROMA ----------------------------------------#
+
+    print('Step 1) MELODIC')
+    aromafunc.runICA(fslDir, inFile, outDir, melDir, mask, dim, TR)
+    melIC = os.path.join(outDir, 'melodic_IC_thr.nii.gz')
+
+    print('Step 2) Automatic classification of the components')
+
+    print('  - *modified version skips commonspace registration')
+
+    print('  - computing edge and out masks')
+    mask_edge = os.path.join(outDir, 'mask_edge.nii.gz')
+    mask_out = os.path.join(outDir, 'mask_out.nii.gz')
+    aromafunc.compute_edge_mask(mask,mask_edge, num_edge_voxels=1)
+    aromafunc.compute_out_mask(mask,mask_out)
+
+    print('  - extracting the CSF & Edge fraction features')
+    #modified inputs for the spatial features, by providing the required masks manually
+    edgeFract, csfFract = aromafunc.mod_feature_spatial(fslDir, outDir, melIC, mask_csf, mask_edge, mask_out)
+
+    print('  - extracting the Maximum RP correlation feature')
+    melmix = os.path.join(outDir, 'melodic.ica', 'melodic_mix')
+    maxRPcorr = aromafunc.feature_time_series(melmix, mc)
+
+    print('  - extracting the High-frequency content feature')
+    melFTmix = os.path.join(outDir, 'melodic.ica', 'melodic_FTmix')
+    HFC = aromafunc.feature_frequency(melFTmix, TR)
+
+    print('  - classification')
+    motionICs = aromafunc.classification(outDir, maxRPcorr, edgeFract, HFC, csfFract)
+    classification_plots.classification_plot(os.path.join(outDir, 'classification_overview.txt'),
+                                             outDir)
+
+
+    if (denType != 'no'):
+        print('Step 3) Data denoising')
+        aromafunc.denoising(fslDir, inFile, outDir, melmix, denType, motionICs)
+
+    # Revert to old directory
+    os.chdir(cwd)
+
+    print('\n----------------------------------- Finished -----------------------------------\n')
+
 
 def runICA(fslDir, inFile, outDir, melDirIn, mask, dim, TR):
     """ This function runs MELODIC and merges the mixture modeled thresholded ICs into a single 4D nifti file

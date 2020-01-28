@@ -46,11 +46,8 @@ def find_scans(scan_info, bold_files, brain_mask_files, confounds_files, csf_mas
 def exec_ICA_AROMA(inFile, outDir, mc_file, brain_mask, csf_mask, tr, aroma_dim):
     import os
     import conf_reg.utils
-    dir_path = os.path.dirname(os.path.realpath(conf_reg.utils.__file__))
-    ica_aroma_script_path=dir_path+'/mod_ICA_AROMA/ICA_AROMA.py'
-    command='python %s -i %s -o %s -mc %s -m %s -c %s -tr %s -ow -dim %s' % (ica_aroma_script_path, os.path.abspath(inFile), os.path.abspath(outDir), os.path.abspath(mc_file), os.path.abspath(brain_mask), os.path.abspath(csf_mask), str(tr),str(aroma_dim),)
-    print(command)
-    os.system(command)
+    from conf_reg.mod_ICA_AROMA.ICA_AROMA_functions import run_ICA_AROMA
+    run_ICA_AROMA(os.path.abspath(outDir),os.path.abspath(inFile),mc=os.path.abspath(mc_file),TR=float(tr),mask=os.path.abspath(brain_mask),mask_csf=os.path.abspath(csf_mask),denType="nonaggr",melDir="",dim=str(aroma_dim),overwrite=True)
     return os.path.abspath(outDir+'/denoised_func_data_nonaggr.nii.gz')
 
 def csv2par(in_confounds):
@@ -138,10 +135,12 @@ def regress(scan_info,bold_file, brain_mask_file, confounds_file, csf_mask, FD_f
 
     #including detrending, standardization
     cleaning_input=nilearn.image.smooth_img(bold_file, smoothing_filter)
+    aroma_out=out_dir
     if run_aroma:
+        aroma_out=out_dir+'/%s_aroma' % (scan_info)
         smooth_path=os.path.abspath(out_dir+'/%s_smoothed.nii.gz' % (scan_info))
         cleaning_input.to_filename(smooth_path)
-        cleaning_input=exec_ICA_AROMA(smooth_path, out_dir+'/%s_aroma' % (scan_info), csv2par(confounds_file), brain_mask_file, csf_mask, TR, aroma_dim)
+        cleaning_input=exec_ICA_AROMA(smooth_path, aroma_out, csv2par(confounds_file), brain_mask_file, csf_mask, TR, aroma_dim)
     if len(confounds_list)>0:
         confounds_array=np.transpose(np.asarray(confounds_list))
         if not timeseries_interval=='all':
@@ -155,7 +154,7 @@ def regress(scan_info,bold_file, brain_mask_file, confounds_file, csf_mask, FD_f
         cleaned=scrubbing(cleaned, FD_file, scrubbing_threshold, timeseries_interval)
     cleaned_path=out_dir+'/'+scan_info+'_cleaned.nii.gz'
     cleaned.to_filename(cleaned_path)
-    return cleaned_path, bold_file
+    return cleaned_path, bold_file, aroma_out
 
 def data_diagnosis(bold_file, cleaned_path, brain_mask_file, seed_list):
     import os
