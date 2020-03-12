@@ -1,6 +1,6 @@
 This is a python package for confound regression of fMRI timeseries adapted to manage outputs from RABIES (https://github.com/CoBrALab/RABIES).
 ## Features
-Confound regression approaches provided:
+**Confound regression approaches provided:**
  * 6 rigid body parameters
  * 24 motion parameters (6 rigid, temporal derivative and the all parameters squared)
  * Framewise displacement
@@ -10,13 +10,13 @@ Confound regression approaches provided:
  * Global signal
  * ICA-AROMA
  * Scrubbing
-Filters (from https://nilearn.github.io/modules/generated/nilearn.image.clean_img.html):
+**Filters (from https://nilearn.github.io/modules/generated/nilearn.image.clean_img.html):**
  * highpass
  * lowpass
  * spatial smoothing
 
 <br/>
-Diagnosis output option (--diagnosis_output): allows to generate tSNR, ICA components from FSL's MELODIC (https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/MELODIC) and seed-based connectivity maps (from seeds provided by the user) for every individual scans for observation purposes. This allows to establish the quality of the data and presence of confounds at the individual scan level.
+**Diagnosis output option (--diagnosis_output):** allows to generate tSNR, ICA components from FSL's MELODIC (https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/MELODIC) and seed-based connectivity maps (from seeds provided by the user) for every individual scans for observation purposes. This allows to establish the quality of the data and presence of confounds at the individual scan level.
 
 ## Command Line Interface
 ```
@@ -117,9 +117,9 @@ Docker execution
   --execution_specifications
 ```
 ## Outputs
-Cleaned EPI timeseries: /output_directory/sub-{sub_id}_ses-{ses_num}_run-{run_num}_cleaned.nii.gz
+**Cleaned EPI timeseries:** /output_directory/sub-{sub_id}_ses-{ses_num}_run-{run_num}_cleaned.nii.gz
 <br/>
-Diagnosis outputs: /output_directory/confound_regression/_scan_info_sub-{sub_id}_ses-{ses_num}_run-{run_num}/data_diagnosis/
+**Diagnosis outputs:** /output_directory/confound_regression/_scan_info_sub-{sub_id}_ses-{ses_num}_run-{run_num}/data_diagnosis/
 
 ## /mod_ICA-AROMA:
   Consists of a modified version of the ICA-AROMA package (https://github.com/maartenmennes/ICA-AROMA), where the masks provided are already in the same space as the EPI, to allow the specification of rodent brain masks, and thus no registration is needed. An edge mask and outside mask are generated based on the provided brain mask.
