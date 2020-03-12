@@ -1,0 +1,7 @@
+## Containerized installation
+Containers are virtual computing environments where all dependencies required to execute a software can be controlled, and don't require the manual installation of dependencies. However, containers can only be executed in parallel through the 'MultiProc' option.
+* Singularity container: Singularity containers don't require root privileges to use and can be run locally or on remote computing clusters. After installing Singularity (https://singularity.lbl.gov), the container can be generated as a singularity image with "singularity build conf_reg.sif docker://gabdesgreg/conf_reg:tagname". See README for execution instructions.
+* Docker container: Using Docker (https://www.docker.com), you can directly install the container from docker hub with "docker pull gabdesgreg/conf_reg:tagname", to create a new image tagged "gabdesgreg/conf_reg:tagname" among your docker images. The usage of Docker requires root privileges, and thus cannot be used on remote computing clusters. See README for execution instructions.
+
+## Local installation
+The package can be install by pulling the repository from github ("git pull https://github.com/Gab-D-G/conf_reg_pkg"), and executing install.sh to set paths to the confound_regression.py file in your bash environment. You can verify the installation through "confound_regression.py -h". For executing the package, you must make sure the dependencies are met. It is recommended to use the python environment from RABIES (https://github.com/CoBrALab/RABIES).
