@@ -10,13 +10,17 @@ This is a python package for confound regression of fMRI timeseries adapted to m
  * Global signal
  * ICA-AROMA
  * Scrubbing
+<br/>
+
 **Filters (from https://nilearn.github.io/modules/generated/nilearn.image.clean_img.html):**
  * highpass
  * lowpass
  * spatial smoothing
 
 <br/>
-**Diagnosis output option (--diagnosis_output):** allows to generate tSNR, ICA components from FSL's MELODIC (https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/MELODIC) and seed-based connectivity maps (from seeds provided by the user) for every individual scans for observation purposes. This allows to establish the quality of the data and presence of confounds at the individual scan level.
+
+**Diagnosis output option (--diagnosis_output):** 
+allows to generate tSNR, ICA components from FSL's MELODIC (https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/MELODIC) and seed-based connectivity maps (from seeds provided by the user) for every individual scans for observation purposes. This allows to establish the quality of the data and presence of confounds at the individual scan level.
 
 ## Command Line Interface
 ```
