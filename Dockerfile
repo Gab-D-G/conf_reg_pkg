@@ -66,13 +66,6 @@ ENV export FSLDIR="/usr/share/fsl/5.0/" \
   export PATH="/usr/share/fsl/5.0/bin:$PATH" \
   export LD_LIBRARY_PATH=/usr/lib/fsl/5.0:$LD_LIBRARY_PATH
 
-# Configure FSL environment
-RUN echo "export FSLDIR='/usr/share/fsl/5.0/'" >> $HOME/.bashrc \
-  echo "export FSL_DIR='${FSLDIR}'" >> $HOME/.bashrc \
-  echo "export FSLOUTPUTTYPE=NIFTI_GZ" >> $HOME/.bashrc \
-  echo "export PATH='/usr/share/fsl/5.0/bin:$PATH'" >> $HOME/.bashrc \
-  "export LD_LIBRARY_PATH=/usr/lib/fsl/5.0:$LD_LIBRARY_PATH" >> $HOME/.bashrc
-
 ### install ANTs
 RUN apt-get update -qq \
     && sudo apt-get install -y -q --no-install-recommends \
@@ -119,8 +112,6 @@ RUN apt-get update -qq \
     && mv /tmp/ants/source/Scripts/* $HOME/ants-v2.3.1/bin \
     && rm -rf /tmp/ants
 
-
-
 #Install python environment
 
 ENV CONDA_DIR="$HOME/miniconda-latest" \
@@ -142,6 +133,13 @@ RUN mkdir -p temp && \
     cd .. && \
     conda env create -f temp/RABIES-0.1.2/rabies_environment.yml && \
     rm -r temp
+
+# Configure FSL environment
+RUN echo "export FSLDIR='/usr/share/fsl/5.0/'" >> $HOME/.bashrc \
+  echo "export FSL_DIR='${FSLDIR}'" >> $HOME/.bashrc \
+  echo "export FSLOUTPUTTYPE=NIFTI_GZ" >> $HOME/.bashrc \
+  echo "export PATH='/usr/share/fsl/5.0/bin:$PATH'" >> $HOME/.bashrc \
+  "export LD_LIBRARY_PATH=/usr/lib/fsl/5.0:$LD_LIBRARY_PATH" >> $HOME/.bashrc
 
 # install confound regression package
 RUN git clone https://github.com/Gab-D-G/conf_reg_pkg.git $HOME/conf_reg_pkg && \
@@ -167,6 +165,7 @@ RUN export FSLDIR="/usr/share/fsl/5.0/" && \
   echo "os.environ['LD_LIBRARY_PATH'] = '/usr/lib/fsl/5.0:${LD_LIBRARY_PATH}'" >> temp && \
   cat temp | cat - $HOME/conf_reg_pkg/conf_reg/confound_regression.py > tmp && mv tmp $HOME/conf_reg_pkg/conf_reg/confound_regression.py && \
   chmod +x $HOME/conf_reg_pkg/conf_reg/confound_regression.py
+
 
 WORKDIR /tmp/
 RUN /bin/bash -c "source activate rabies"
